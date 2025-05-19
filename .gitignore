@@ -1,0 +1,5 @@
+node_modules/
+chaindata/
+.DS_Store
+.env
+*.log 
