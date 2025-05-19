@@ -11,6 +11,14 @@ class Transaction {
         this.inputs = inputs;  // UTXO inputs
         this.outputs = outputs;  // UTXO outputs
         this.signature = '';
+
+        // 如果是挖矿奖励交易，直接创建输出
+        if (fromAddress === null) {
+            this.outputs.push({
+                address: toAddress,
+                amount: amount
+            });
+        }
     }
 
     calculateHash() {

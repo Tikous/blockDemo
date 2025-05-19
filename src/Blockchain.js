@@ -1,6 +1,5 @@
 const Block = require('./Block');
 const Transaction = require('./Transaction');
-const level = require('level');
 
 class Blockchain {
     constructor() {
@@ -10,8 +9,12 @@ class Blockchain {
         this.miningReward = 100;
         this.targetBlockTime = 10000; // 10 seconds in milliseconds
         this.difficultyAdjustmentInterval = 10; // Adjust difficulty every 10 blocks
-        this.db = level('./chaindata'); // Initialize LevelDB
         this.utxoSet = new Map(); // Store unspent transaction outputs
+    }
+
+    async initialize() {
+        console.log('Starting with in-memory blockchain');
+        return Promise.resolve();
     }
 
     createGenesisBlock() {
@@ -40,7 +43,7 @@ class Blockchain {
         return this.difficulty;
     }
 
-    minePendingTransactions(miningRewardAddress) {
+    async minePendingTransactions(miningRewardAddress) {
         const rewardTx = new Transaction(null, miningRewardAddress, this.miningReward);
         this.pendingTransactions.push(rewardTx);
 
@@ -58,9 +61,11 @@ class Blockchain {
 
         // Clear pending transactions
         this.pendingTransactions = [];
-
-        // Persist to database
-        this.saveToDb();
+        
+        return {
+            block,
+            transactions: block.transactions
+        };
     }
 
     addTransaction(transaction) {
@@ -136,32 +141,6 @@ class Blockchain {
         return true;
     }
 
-    async saveToDb() {
-        try {
-            await this.db.put('chain', JSON.stringify(this.chain));
-            await this.db.put('utxoSet', JSON.stringify(Array.from(this.utxoSet.entries())));
-        } catch (error) {
-            console.error('Error saving to database:', error);
-        }
-    }
-
-    async loadFromDb() {
-        try {
-            const chainData = await this.db.get('chain');
-            const utxoData = await this.db.get('utxoSet');
-            
-            this.chain = JSON.parse(chainData);
-            this.utxoSet = new Map(JSON.parse(utxoData));
-        } catch (error) {
-            if (error.type === 'NotFoundError') {
-                console.log('No existing blockchain found in database');
-            } else {
-                console.error('Error loading from database:', error);
-            }
-        }
-    }
-
-    // Find the longest valid chain
     async findLongestChain(chains) {
         let longestChain = this.chain;
         let maxLength = this.chain.length;
@@ -175,7 +154,6 @@ class Blockchain {
 
         if (longestChain !== this.chain) {
             this.chain = longestChain;
-            await this.saveToDb();
         }
 
         return longestChain;
@@ -204,6 +182,35 @@ class Blockchain {
         }
 
         return true;
+    }
+
+    createTransaction(fromAddress, toAddress, amount) {
+        // 获取发送方的UTXO
+        const availableUTXOs = [];
+        let totalAvailable = 0;
+        
+        for (const [utxoKey, utxo] of this.utxoSet) {
+            if (utxo.address === fromAddress) {
+                availableUTXOs.push({
+                    txHash: utxoKey.split(':')[0],
+                    outputIndex: parseInt(utxoKey.split(':')[1]),
+                    amount: utxo.amount
+                });
+                totalAvailable += utxo.amount;
+                
+                if (totalAvailable >= amount) {
+                    break;
+                }
+            }
+        }
+        
+        if (totalAvailable < amount) {
+            throw new Error('Not enough balance');
+        }
+        
+        // 创建新交易
+        const tx = new Transaction(fromAddress, toAddress, amount, availableUTXOs);
+        return tx;
     }
 }
 

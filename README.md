@@ -9,6 +9,21 @@
 - P2P 网络
 - RESTful API
 - 使用 LevelDB 的数据持久化
+- React 前端可视化界面
+
+## 项目结构
+
+- `/src` - 区块链核心代码
+  - `/src/Block.js` - 区块实现，包含默克尔树
+  - `/src/Transaction.js` - 交易和UTXO实现
+  - `/src/Blockchain.js` - 区块链实现，包含难度调整
+  - `/src/P2PServer.js` - P2P网络功能
+  - `/src/HttpServer.js` - REST API实现
+  - `/src/index.js` - 主入口文件
+- `/client` - React前端界面代码
+  - `/client/src/components` - 可重用组件
+  - `/client/src/pages` - 页面组件
+  - `/client/src/services` - API服务和接口定义
 
 ## 环境要求
 
@@ -18,12 +33,19 @@
 ## 安装
 
 1. 克隆仓库
-2. 安装依赖：
+2. 安装后端依赖：
 ```bash
 npm install
 ```
+3. 安装前端依赖：
+```bash
+cd client
+npm install
+```
 
-## 运行节点
+## 运行应用
+
+### 启动区块链节点
 
 使用默认端口启动节点（HTTP: 3001, P2P: 6001）：
 ```bash
@@ -34,6 +56,25 @@ npm start
 ```bash
 HTTP_PORT=3002 P2P_PORT=6002 npm start
 ```
+
+### 启动前端界面
+
+在另一个终端窗口中：
+```bash
+cd client
+npm start
+```
+
+前端将在 [http://localhost:3000](http://localhost:3000) 上运行。
+
+## 前端功能
+
+- **仪表盘**：显示区块链概览、统计数据和图表
+- **区块浏览**：查看所有区块及其详细信息
+- **交易管理**：查看交易历史、创建新交易
+- **挖矿界面**：挖掘新区块、查看待处理交易
+- **钱包管理**：创建和管理钱包、查看余额和UTXO
+- **网络状态**：查看和管理P2P连接
 
 ## API 接口
 
@@ -61,72 +102,53 @@ HTTP_PORT=3002 P2P_PORT=6002 npm start
   ```
 - `GET /pending-transactions` - 获取待处理交易
 - `GET /balance/:address` - 获取地址余额
-- `GET /utxo/:address` - 获取地址的 UTXO 集合
-
-### 网络操作
-
-- `POST /peers` - 添加新节点
-  ```json
-  {
-    "peer": "ws://localhost:6002"
-  }
-  ```
-- `GET /peers` - 获取已连接节点列表
+- `GET /utxo/:address` - 获取地址的 UTXO（未花费的交易输出）
 
 ### 钱包操作
 
-- `POST /wallet/new` - 生成新钱包（返回公钥和私钥）
+- `POST /wallet/new` - 创建新钱包
+  
+  响应:
+  ```json
+  {
+    "privateKey": "私钥",
+    "publicKey": "公钥/地址"
+  }
+  ```
 
-## P2P 网络
+### 网络操作
 
-创建多节点网络：
+- `GET /peers` - 获取连接的对等节点列表
+- `POST /peers` - 连接到新的对等节点
+  ```json
+  {
+    "peer": "ws://hostname:port"
+  }
+  ```
 
-1. 使用默认端口启动第一个节点
-2. 使用不同端口启动其他节点
-3. 使用 `/peers` 接口连接节点
+## 多节点设置
 
-示例：
+要创建一个多节点网络：
+
+1. 启动第一个节点：
 ```bash
-# 终端 1 - 第一个节点
 npm start
-
-# 终端 2 - 第二个节点
-HTTP_PORT=3002 P2P_PORT=6002 npm start
-
-# 终端 3 - 将第二个节点连接到第一个节点
-curl -X POST -H "Content-Type: application/json" -d '{"peer": "ws://localhost:6001"}' http://localhost:3002/peers
 ```
 
-## 功能特性
-
-### 挖矿
-
-- 自动难度调整，保持约 10 秒的出块时间
-- 挖矿奖励：100 个币
-- 工作量证明共识机制
-
-### 交易
-
-- 基于 UTXO 的交易模型
-- 使用椭圆曲线加密的数字签名
-- 交易验证
-- 使用默克尔树进行高效的交易验证
-
-### 链安全
-
-- 最长链规则
-- 区块验证
-- 交易验证
-- 加密工作量证明
-
-### 数据持久化
-
-- 区块链数据存储在 LevelDB 中
-- 重启时自动从数据库恢复
-
-## 开发
-
-使用自动重启进行开发：
+2. 启动第二个节点（不同端口）：
 ```bash
-npm run dev
-``` 
+HTTP_PORT=3002 P2P_PORT=6002 npm start
+```
+
+3. 将第二个节点连接到第一个节点：
+```bash
+curl -X POST http://localhost:3002/peers -H "Content-Type: application/json" -d '{"peer": "ws://localhost:6001"}'
+```
+
+## 网络扩展
+
+通过此方式，可以创建任意数量的节点并将它们互相连接，形成P2P网络。
+
+## 许可证
+
+MIT 
